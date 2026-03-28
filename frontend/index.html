@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kidney Tumor Detection AI - Medical Imaging Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0066cc;
+            --primary-dark: #0052a3;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            padding: 40px;
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            padding: 25px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+
+        .header h1 {
+            color: var(--text);
+            font-size: 32px;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .header p {
+            color: var(--text-light);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            margin-bottom: 25px;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 100%);
+        }
+
+        .upload-area.dragover {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            border-color: var(--primary);
+            box-shadow: 0 0 30px rgba(0, 102, 204, 0.2);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .upload-text {
+            color: var(--text);
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+
+        .upload-hint {
+            color: var(--text-light);
+            font-size: 13px;
+        }
+
+        #imageInput {
+            display: none;
+        }
+
+        .preview-section {
+            display: none;
+            margin-bottom: 25px;
+        }
+
+        .preview-section.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        .preview-title {
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+            max-height: 350px;
+            border: 2px solid var(--border);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-analyze {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+
+        .btn-analyze:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 102, 204, 0.35);
+        }
+
+        .btn-analyze:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-clear {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        .btn-clear:hover {
+            background: #cbd5e1;
+        }
+
+        .result-section {
+            display: none;
+            margin-top: 30px;
+            padding: 25px;
+            border-radius: 12px;
+            animation: slideIn 0.4s ease;
+            border-left: 5px solid;
+        }
+
+        .result-section.active {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-section.normal {
+            background: #ecfdf5;
+            border-color: var(--success);
+        }
+
+        .result-section.tumor {
+            background: #fef2f2;
+            border-color: var(--danger);
+        }
+
+        .result-badge {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 24px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .badge-normal {
+            background: var(--success);
+            color: white;
+        }
+
+        .badge-tumor {
+            background: var(--danger);
+            color: white;
+        }
+
+        .result-confidence {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-top: 12px;
+        }
+
+        .confidence-value {
+            font-weight: 700;
+            font-size: 20px;
+            color: var(--text);
+        }
+
+        .confidence-bar {
+            width: 100%;
+            height: 10px;
+            background: #e2e8f0;
+            border-radius: 8px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            border-radius: 8px;
+            transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .confidence-fill.normal {
+            background: linear-gradient(90deg, #10b981, #34d399);
+        }
+
+        .confidence-fill.tumor {
+            background: linear-gradient(90deg, #ef4444, #f87171);
+        }
+
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .loading-spinner.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            display: none;
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 14px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--danger);
+            animation: slideIn 0.3s ease;
+            font-size: 14px;
+        }
+
+        .error-message.active {
+            display: block;
+        }
+
+        .error-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .file-name {
+            color: var(--text-light);
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        /* Sidebar Styles */
+        .sidebar-section {
+            margin-bottom: 25px;
+        }
+
+        .sidebar-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .sidebar-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: var(--bg);
+            border-radius: 8px;
+        }
+
+        .stat-label {
+            color: var(--text-light);
+            font-size: 13px;
+        }
+
+        .stat-value {
+            color: var(--text);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .history-item {
+            padding: 12px;
+            background: var(--bg);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .history-item:hover {
+            background: #f1f5f9;
+        }
+
+        .history-item.normal {
+            border-left-color: var(--success);
+        }
+
+        .history-item.tumor {
+            border-left-color: var(--danger);
+        }
+
+        .history-prediction {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .history-confidence {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+
+        /* Responsive design */
+        @media (max-width: 900px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+            }
+
+            .sidebar-section {
+                margin-bottom: 0;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 25px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            button {
+                padding: 10px 16px;
+                font-size: 13px;
+            }
+
+            .button-group {
+                gap: 10px;
+            }
+
+            .sidebar {
+                grid-template-columns: 1fr;
+            }
+
+            .upload-area {
+                padding: 25px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Main Content -->
+        <div class="container">
+            <!-- Header -->
+            <div class="header">
+                <h1>🏥 Kidney Tumor Detection</h1>
+                <p>AI-Powered CT Scan Analysis System</p>
+            </div>
+
+            <!-- Error Message -->
+            <div class="error-message" id="errorMessage">
+                <div class="error-title">Error</div>
+                <div class="error-text"></div>
+            </div>
+
+            <!-- Upload Area -->
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📤</div>
+                <div class="upload-text">Drag & drop your CT scan here</div>
+                <div class="upload-hint">or click to browse (JPG, PNG, GIF, BMP)</div>
+                <input type="file" id="imageInput" accept="image/*">
+            </div>
+
+            <!-- Preview Section -->
+            <div class="preview-section" id="previewSection">
+                <div class="preview-title">📷 Selected Image</div>
+                <img id="previewImage" class="preview-image" alt="Preview">
+                <div class="file-name" id="fileName"></div>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div class="loading-spinner" id="loadingSpinner">
+                <div class="spinner"></div>
+                <div style="margin-top: 12px; color: var(--text-light); font-size: 14px;">Analyzing image...</div>
+            </div>
+
+            <!-- Result Section -->
+            <div class="result-section" id="resultSection">
+                <div id="resultBadge" class="result-badge"></div>
+                <div class="result-confidence">
+                    <strong>Confidence:</strong> <span class="confidence-value" id="confidenceValue">0%</span>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="confidenceFill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="button-group">
+                <button class="btn-analyze" id="analyzeBtn" style="display: none;">🔍 Analyze</button>
+                <button class="btn-clear" id="clearBtn" style="display: none;">🗑️ Clear</button>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- Model Info -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">ℹ️ Model Info</div>
+                <div class="stat-item">
+                    <span class="stat-label">Accuracy</span>
+                    <span class="stat-value">~92%</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Parameters</span>
+                    <span class="stat-value">25.7M</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Model Type</span>
+                    <span class="stat-value">CNN</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Input Size</span>
+                    <span class="stat-value">224×224</span>
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">📊 Session Stats</div>
+                <div class="stat-item">
+                    <span class="stat-label">Predictions</span>
+                    <span class="stat-value" id="statsCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Normal</span>
+                    <span class="stat-value" id="statsNormal">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Tumor</span>
+                    <span class="stat-value" id="statsTumor">0</span>
+                </div>
+            </div>
+
+            <!-- Recent Predictions -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">🔍 Recent</div>
+                <div id="historyContainer" style="color: var(--text-light); font-size: 13px;">
+                    No predictions yet
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // ==================== CONFIGURATION ====================
+        const API_URL = 'http://localhost:5000/predict';
+        const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/bmp'];
+
+        // ==================== DOM ELEMENTS ====================
+        const uploadArea = document.getElementById('uploadArea');
+        const imageInput = document.getElementById('imageInput');
+        const previewSection = document.getElementById('previewSection');
+        const previewImage = document.getElementById('previewImage');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const resultSection = document.getElementById('resultSection');
+        const resultBadge = document.getElementById('resultBadge');
+        const confidenceValue = document.getElementById('confidenceValue');
+        const confidenceFill = document.getElementById('confidenceFill');
+        const fileName = document.getElementById('fileName');
+        const errorMessage = document.getElementById('errorMessage');
+        const historyContainer = document.getElementById('historyContainer');
+        const statsCount = document.getElementById('statsCount');
+        const statsNormal = document.getElementById('statsNormal');
+        const statsTumor = document.getElementById('statsTumor');
+
+        // ==================== STATE MANAGEMENT ====================
+        let selectedFile = null;
+        let predictionHistory = [];
+        let stats = {
+            total: 0,
+            normal: 0,
+            tumor: 0
+        };
+
+        // Load stats from localStorage
+        function loadStats() {
+            const saved = localStorage.getItem('kidneyTumorStats');
+            if (saved) {
+                stats = JSON.parse(saved);
+                updateStatsDisplay();
+            }
+            
+            const savedHistory = localStorage.getItem('kidneyTumorHistory');
+            if (savedHistory) {
+                predictionHistory = JSON.parse(savedHistory);
+                updateHistoryDisplay();
+            }
+        }
+
+        // Save stats to localStorage
+        function saveStats() {
+            localStorage.setItem('kidneyTumorStats', JSON.stringify(stats));
+            localStorage.setItem('kidneyTumorHistory', JSON.stringify(predictionHistory));
+        }
+
+        // ==================== EVENT LISTENERS ====================
+        uploadArea.addEventListener('click', () => imageInput.click());
+        imageInput.addEventListener('change', handleFileSelect);
+        analyzeBtn.addEventListener('click', handleAnalyze);
+        clearBtn.addEventListener('click', handleClear);
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                imageInput.files = files;
+                handleFileSelect();
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + A: Analyze
+            if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                e.preventDefault();
+                if (analyzeBtn.style.display !== 'none') handleAnalyze();
+            }
+            // Ctrl/Cmd + L: Clear
+            if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+                e.preventDefault();
+                if (clearBtn.style.display !== 'none') handleClear();
+            }
+        });
+
+        // ==================== FILE HANDLING ====================
+        function handleFileSelect() {
+            const file = imageInput.files[0];
+            
+            if (!file) return;
+
+            // Validate file type
+            if (!ALLOWED_TYPES.includes(file.type)) {
+                showError('❌ Invalid file type. Please upload JPG, PNG, GIF, or BMP image.');
+                return;
+            }
+
+            // Validate file size (max 20MB)
+            const maxSize = 20 * 1024 * 1024;
+            if (file.size > maxSize) {
+                showError('⚠️ File is too large. Maximum size is 20MB.');
+                return;
+            }
+
+            selectedFile = file;
+            clearError();
+            displayPreview(file);
+            showActionButtons();
+        }
+
+        function displayPreview(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                previewSection.classList.add('active');
+                fileName.textContent = `📁 ${file.name} (${formatFileSize(file.size)})`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ==================== ANALYSIS ====================
+        async function handleAnalyze() {
+            if (!selectedFile) {
+                showError('❌ No file selected.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            analyzeBtn.disabled = true;
+            clearBtn.disabled = true;
+            loadingSpinner.classList.add('active');
+            resultSection.classList.remove('active');
+            clearError();
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Prediction failed');
+                }
+
+                displayResult(data);
+                addToPredictionHistory(data.prediction, data.confidence_percent);
+
+            } catch (error) {
+                console.error('Error:', error);
+                showError('🔌 ' + (error.message || 'Failed to connect to server'));
+            } finally {
+                loadingSpinner.classList.remove('active');
+                analyzeBtn.disabled = false;
+                clearBtn.disabled = false;
+            }
+        }
+
+        function displayResult(data) {
+            const isNormal = data.prediction === 'Normal';
+            const confidence = data.confidence_percent || (data.confidence * 100);
+            
+            resultBadge.textContent = isNormal ? '✅ NORMAL' : '⚠️ TUMOR DETECTED';
+            resultBadge.className = `result-badge ${isNormal ? 'badge-normal' : 'badge-tumor'}`;
+            
+            confidenceValue.textContent = confidence.toFixed(1) + '%';
+            
+            confidenceFill.style.width = confidence + '%';
+            confidenceFill.className = `confidence-fill ${isNormal ? 'normal' : 'tumor'}`;
+            
+            resultSection.className = `result-section active ${isNormal ? 'normal' : 'tumor'}`;
+            
+            setTimeout(() => {
+                resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 100);
+        }
+
+        // ==================== HISTORY & STATS ====================
+        function addToPredictionHistory(prediction, confidence) {
+            const timestamp = new Date().toLocaleTimeString();
+            predictionHistory.unshift({
+                prediction,
+                confidence: confidence.toFixed(1),
+                time: timestamp
+            });
+
+            // Keep only last 10 predictions
+            if (predictionHistory.length > 10) {
+                predictionHistory.pop();
+            }
+
+            // Update stats
+            stats.total++;
+            if (prediction === 'Normal') {
+                stats.normal++;
+            } else {
+                stats.tumor++;
+            }
+
+            updateHistoryDisplay();
+            updateStatsDisplay();
+            saveStats();
+        }
+
+        function updateHistoryDisplay() {
+            if (predictionHistory.length === 0) {
+                historyContainer.innerHTML = '<div style="color: var(--text-light); font-size: 13px;">No predictions yet</div>';
+                return;
+            }
+
+            historyContainer.innerHTML = predictionHistory.map((item, i) => `
+                <div class="history-item ${item.prediction.toLowerCase()}">
+                    <div class="history-prediction">${i + 1}. ${item.prediction}</div>
+                    <div class="history-confidence">${item.confidence}% • ${item.time}</div>
+                </div>
+            `).join('');
+        }
+
+        function updateStatsDisplay() {
+            statsCount.textContent = stats.total;
+            statsNormal.textContent = stats.normal;
+            statsTumor.textContent = stats.tumor;
+        }
+
+        // ==================== UI HELPERS ====================
+        function showActionButtons() {
+            analyzeBtn.style.display = 'block';
+            clearBtn.style.display = 'block';
+        }
+
+        function hideActionButtons() {
+            analyzeBtn.style.display = 'none';
+            clearBtn.style.display = 'none';
+        }
+
+        function handleClear() {
+            selectedFile = null;
+            imageInput.value = '';
+            previewSection.classList.remove('active');
+            resultSection.classList.remove('active');
+            loadingSpinner.classList.remove('active');
+            hideActionButtons();
+            clearError();
+        }
+
+        function showError(message) {
+            errorMessage.querySelector('.error-text').textContent = message;
+            errorMessage.classList.add('active');
+        }
+
+        function clearError() {
+            errorMessage.classList.remove('active');
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024, sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // ==================== INITIALIZATION ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🏥 Kidney Tumor Detection Frontend - Ready');
+            console.log('Keyboard shortcuts: Ctrl+A (Analyze), Ctrl+L (Clear)');
+            console.log('API Endpoint: ' + API_URL);
+            loadStats();
+        });
+    </script>
+</body>
+</html>
