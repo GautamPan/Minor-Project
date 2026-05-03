@@ -135,3 +135,4 @@ if __name__ == '__main__':
     
     if load_trained_model():
         app.run(host='localhost', port=5000, debug=False)
+        
